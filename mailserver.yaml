@@ -1,0 +1,112 @@
+namespace: mailserver
+mailserver:
+  defines: runnable
+  metadata:
+    name: mailserver
+    description: >-
+      A mailserver application that supports SMTP, IMAP protocols with support
+      for certbot and spam protection services
+    icon: https://emojiapi.dev/api/v1/robot.svg
+  containers:
+    mailserver:
+      build: .
+  services:
+    smtp-port:
+      container: mailserver
+      port: 25
+      host-port: 25
+      publish: false
+      protocol: TCP
+      description: Used for SMTP services
+    certbot-port:
+      container: mailserver
+      port: 80
+      host-port: 80
+      publish: false
+      protocol: TCP
+      description: Used for certbot services
+    imap-port:
+      container: mailserver
+      port: 143
+      host-port: 143
+      publish: false
+      protocol: TCP
+      description: Used for IMAP services
+    certbot2-port:
+      container: mailserver
+      port: 443
+      host-port: 443
+      publish: false
+      protocol: TCP
+      description: Used for certbot services
+    esmtp-port:
+      container: mailserver
+      port: 465
+      host-port: 465
+      publish: false
+      protocol: TCP
+      description: Used for ESMTP services
+    esmtp2-port:
+      container: mailserver
+      port: 587
+      host-port: 587
+      publish: false
+      protocol: TCP
+      description: Used for ESMTP services
+    imap2-port:
+      container: mailserver
+      port: 993
+      host-port: 993
+      publish: false
+      protocol: TCP
+      description: Used for IMAP services
+    api-port:
+      container: mailserver
+      port: 8080
+      host-port: 8080
+      publish: false
+      protocol: TCP
+      description: Used for communication with the API service
+  variables:
+    override-hostname:
+      env: OVERRIDE_HOSTNAME
+      type: string
+      description: Sets the hostname used for the infrastructure
+      value: infra.monk.io
+    log-level:
+      env: LOG_LEVEL
+      type: string
+      description: Sets the log level for the application
+      value: debug
+    ssl-type:
+      env: SSL_TYPE
+      type: string
+      description: Sets the type of SSL to use
+      value: letsencrypt
+    one-dir:
+      env: ONE_DIR
+      type: string
+      description: Store all data in one directory
+      value: '1'
+    permit-docker:
+      env: PERMIT_DOCKER
+      type: string
+      description: >-
+        Permit Docker, setting to 'host' makes it unsecure but simplifies
+        testing
+      value: host
+    enable-spamassassin:
+      env: ENABLE_SPAMASSASSIN
+      type: int
+      description: Turn on or off spamassassin
+      value: 0
+    enable-clamav:
+      env: ENABLE_CLAMAV
+      type: int
+      description: Turn on or off ClamAV
+      value: 0
+    enable-opendkim:
+      env: ENABLE_OPENDKIM
+      type: int
+      description: Turn off DKIM
+      value: 0

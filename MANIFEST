@@ -1,0 +1,2 @@
+REPO mailserver
+LOAD mailserver.yaml
