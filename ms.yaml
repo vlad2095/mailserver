@@ -1,0 +1,144 @@
+namespace: /mailserver
+
+mailserver:
+    defines: runnable
+    affinity:
+        tag: mailserver
+    volumes:
+        defines: volumes
+        mailserver-volume:
+            size: 50
+            kind: SSD
+            path: <- `${monk-volume-path}/mailserver`
+            backup:
+                rotation-days: 1
+                every: 1
+                kind: day
+                start-time: 03:00
+                start-day: MONDAY
+    services:
+        defines: services
+        api:
+            container: api
+            protocol: TCP
+            port: 80
+            host-port: 8080
+            publish: true
+        certbot:
+            container: certbot
+            protocol: TCP
+            port: 80
+            host-port: 80
+            publish: true
+        certbot2:
+            container: certbot
+            protocol: TCP
+            port: 443
+            host-port: 443
+            publish: true
+        mailserver-smtp:
+            container: mailserver
+            protocol: TCP
+            port: 25
+            host-port: 25
+            publish: true
+        mailserver-imap:
+            container: mailserver
+            protocol: TCP
+            port: 143
+            host-port: 143
+            publish: true
+        mailserver-esmtp:
+            container: mailserver
+            protocol: TCP
+            port: 465
+            host-port: 465
+            publish: true
+        mailserver-esmtp2:
+            container: mailserver
+            protocol: TCP
+            port: 587
+            host-port: 587
+            publish: true
+        mailserver-imap2:
+            container: mailserver
+            protocol: TCP
+            port: 993
+            host-port: 993
+            publish: true
+    containers:
+        mailserver:
+            image: ghcr.io/docker-mailserver/docker-mailserver:latest
+            paths:
+                - <- `${monk-volume-path}/mailserver/mail-data:/var/mail`
+                - <- `${monk-volume-path}/mailserver/mail-state:/var/mail-state`
+                - <- `${monk-volume-path}/mailserver/mail-logs:/var/log/mail`
+                - <- `${monk-volume-path}/mailserver/config:/tmp/docker-mailserver`
+                - <- `${monk-volume-path}/certbot/certs/:/etc/letsencrypt`
+                - <- `/etc/localtime:/etc/localtime:ro`
+            ports:
+                - <- `25:25` # SMTP  (explicit TLS => STARTTLS, Authentication is DISABLED => use port 465/587 instead)
+                - <- `143:143` # IMAP4 (explicit TLS => STARTTLS)
+                - <- `465:465` # ESMTP (implicit TLS)
+                - <- `587:587` # ESMTP (explicit TLS => STARTTLS)
+                - <- `993:993` # IMAP4 (implicit TLS)
+            environment:
+                - <- `OVERRIDE_HOSTNAME=infra.monk.io`
+                - <- `LOG_LEVEL=debug`
+                - <- `SSL_TYPE=letsencrypt` # Use letsencrypt
+                - <- `ONE_DIR=1` # Store all data in one directory
+                - <- `PERMIT_DOCKER=host` # Optional: Unsecure but allows for simple testing
+                # Spam protection
+                - <- `ENABLE_SPAMASSASSIN=0` # Turn on or off spamassassin
+                - <- `ENABLE_CLAMAV=0` # Turn on or off ClamAV
+                - <- `ENABLE_OPENDKIM=0` # Turn off DKIM
+        api:
+            image: mydockerid170716/mailserver-http:latest
+            ports:
+                - <- "8080:80"
+        certbot:
+            image: certbot/certbot
+            paths:
+                - <- `${monk-volume-path}/certbot/certs/:/etc/letsencrypt/`
+                - <- `${monk-volume-path}/certbot/logs/:/var/log/letsencrypt/`
+            ports:
+                - <- "80:80"
+                - <- "443:443"
+            entrypoint: certbot certonly --standalone -d infra.monk.io --non-interactive --agree-tos --email vlad@monk.io
+    recovery:
+        after: 60s
+        when: always
+        mode: default
+        kill-on-recovery: child
+    actions:
+        defines: actions
+        add-user:
+            description: Add a user to the mailserver
+            arguments:
+                email:
+                    type: string
+                    description: The email of the user to add
+                password:
+                    type: string
+                    description: The password of the user to add
+            code: exec("mailserver", "/bin/sh", "-c", `setup email add ${args["email"]} ${args["password"]}`)
+        remove-user:
+            description: Remove a user from the mailserver
+            arguments:
+                email:
+                    type: string
+                    description: The email of the user to remove
+            code: exec("mailserver", "/bin/sh", "-c", `setup email del -y ${args["email"]}`)
+        update-user:
+            description: Update a user on the mailserver
+            arguments:
+                email:
+                    type: string
+                    description: The email of the user to update
+                password:
+                    type: string
+                    description: The password of the user to update
+            code: exec("mailserver", "/bin/sh", "-c", `setup email update ${args["email"]} ${args["password"]}`)
+        list:
+            description: List all users on the mailserver
+            code: exec("mailserver", "/bin/sh", "-c", `setup email list`)
